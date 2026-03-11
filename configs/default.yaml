@@ -1,0 +1,96 @@
+# =============================================================================
+# Math Error Correction - Default Training Configuration
+# =============================================================================
+# Optimized for: RTX 3060/3070/4060 (8-12GB VRAM)
+# Base model: Qwen/Qwen2.5-Math-7B-Instruct
+# Method: QLoRA (4-bit quantization + LoRA)
+# =============================================================================
+
+# --- Model ---
+model:
+  name_or_path: "Qwen/Qwen2.5-Math-7B-Instruct"
+  trust_remote_code: true
+  torch_dtype: "float16"    # fp16 for broader GPU compatibility
+
+# --- Quantization (BitsAndBytes 4-bit) ---
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_use_double_quant: true   # nested quantization saves ~0.4GB
+
+# --- LoRA ---
+lora:
+  r: 16                      # rank (ablate: 8, 16, 32, 64)
+  lora_alpha: 32              # alpha = 2 * r
+  lora_dropout: 0.05
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  task_type: "CAUSAL_LM"
+  bias: "none"
+
+# --- Data ---
+data:
+  train_file: "data/train.jsonl"          # {"source": "...", "target": "..."}
+  val_file: "data/val.jsonl"
+  test_file: "data/test.jsonl"
+  max_source_length: 512
+  max_target_length: 512
+  max_length: 1024                        # total (source + target)
+
+# --- Training ---
+training:
+  output_dir: "outputs/qlora_r16"
+  num_train_epochs: 5
+  per_device_train_batch_size: 1          # 1 for 8-12GB VRAM
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 16         # effective batch size = 16
+  gradient_checkpointing: true            # saves ~40% VRAM
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  logging_steps: 10
+  eval_strategy: "steps"
+  eval_steps: 100
+  save_strategy: "steps"
+  save_steps: 100
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  bf16: false
+  fp16: true
+  dataloader_num_workers: 4
+  report_to: "none"
+  seed: 42
+
+# --- Generation (Inference) ---
+generation:
+  max_new_tokens: 512
+  temperature: 0.1                        # low temperature for correction task
+  top_p: 0.95
+  do_sample: false                        # greedy for deterministic correction
+  num_beams: 1
+
+# --- Prompt Template (Qwen2.5 Chat Format) ---
+prompt:
+  system: |
+    "You are an expert in mathematical text error correction. Given a mathematical text that may contain errors in terminology, symbols, formulas, or logical statements, output the corrected version. Only fix genuine errors; preserve correct content exactly as-is. If the input has no errors, output it unchanged.
+  user_template: "Please correct any errors in the following mathematical text:\n\n{source}"
+  # assistant response = {target}
+
+# --- Ablation Presets ---
+ablation:
+  lora_ranks: [8, 16, 32, 64]
+  target_module_groups:
+    attention_only: ["q_proj", "k_proj", "v_proj", "o_proj"]
+    mlp_only: ["gate_proj", "up_proj", "down_proj"]
+    all: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
