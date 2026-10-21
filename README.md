@@ -1,121 +1,215 @@
 # MathCorrector
 
-> A QLoRA-based specialist model for mathematical text error correction. It fine-tunes `Qwen/Qwen2.5-Math-7B-Instruct` to minimally repair terminology, notation, formula and logical errors in English mathematical text interleaved with LaTeX. All data reported in this paper were from MathTEC.
+> A QLoRA-fine-tuned **Qwen2.5-Math-7B-Instruct** that minimally repairs terminology, notation, formula and logical errors in English mathematical text interleaved with LaTeX.
 
-## What Is Included
+**Paper:** [Specializing Small Language Models for Mathematical Error Correction via Parameter-Efficient Fine-Tuning](https://doi.org/10.1145/3817124.3817199) — CAMMIC 2026 (ACM), pp. 485–489
 
-```text
-mathcorrector/
-├── configs/
-│   └── default.yaml        # Default QLoRA, data, and generation config
-├── data/
-│   ├── mathtec_bench_converted.jsonl
-│   │                       # Full 500-example benchmark
-│   ├── train.jsonl         # 400-example training split
-│   ├── val.json            # 50-example validation split
-│   ├── test.jsonl          # 50-example test split
-│   └── dataset.py          # Data loading, chat formatting, split utility
-├── src/
-│   ├── train.py            # QLoRA training entry point
-│   ├── inference.py        # Batch inference with LoRA adapters
-│   ├── evaluate.py         # EM, token PRF, GLEU, CER, detection metrics
-│   ├── chat.py             # Interactive CLI for correction
-│   ├── hf_utils.py         # Local path / HF cache resolution
-│   └── baselines/
-│       ├── base_model.py   # Local Qwen zero-shot / few-shot baselines
-│       ├── gpt_baseline.py # OpenAI-compatible GPT baselines
-│       └── prompts.py      # Baseline prompt templates
-├── scripts/
-│   ├── train.sh            # Train the default QLoRA model
-│   ├── run_baselines.sh    # Reproduce main baseline comparisons
-│   ├── run_ablations.sh    # Reproduce LoRA rank / module ablations
-│   ├── train.ps1           # PowerShell training script
-│   ├── run_baselines.ps1   # PowerShell baseline script
-│   └── run_ablations.ps1   # PowerShell ablation script
-├── analysis/
-│   ├── error_analysis.py   # Heuristic edit-type analysis
-├── predictions/            # Released prediction files
-├── results/                # Released evaluation JSON results
-├── paper/
-│   └── paper.tex           # ACL-style paper draft
-├── requirements.txt
-└── README.md
-```
-
-## Reproduce Experiments
-
-1. Training
-
-```bash
-pip install -r requirements.txt
-bash scripts/train.sh
-```
-
-2. Baselines
-
-```bash
-# Set GPT API
-export GPT_MODEL="gpt-5.4"
-export GPT_BASE_URL="https://your-relay.com/v1"
-export GPT_API_KEY="sk-..."
-
-bash scripts/run_baselines.sh
-```
-
-3. Ablations
-
-```bash
-bash scripts/run_ablations.sh
-```
-
-4. Evaluation
-
-```bash
-python3 -m src.evaluate \
-  --predictions_file predictions/qlora_finetuned.jsonl \
-  --output_file results/qlora_finetuned.json
-```
-
-5. Interactive Demo
-
-```bash
-python3 -m src.chat \
-  --config configs/default.yaml \
-  --adapter_path outputs/qlora_r16/final
-```
-
-```text
-Input:  For all $x \in \mathbb{R}$, the funciton $f(x) = x^{2}$ is continuos.
-Output: For all $x \in \mathbb{R}$, the function $f(x) = x^{2}$ is continuous.
-```
+The model is trained on **MathTEC-Bench**, a 500-example synthetic benchmark of mathematical error–correction pairs built by injecting five categories of errors into clean LLM-generated mathematics statements.
 
 ## Results
 
-### Main Results
+Main results on the 50-example MathTEC-Bench test split:
 
 | Model | Precision | Recall | F0.5 | Exact Match | CER | Detection Acc. |
-|--------|-----------|--------|------|-------------|-----|----------------|
-| GPT zero-shot | 0.937 | 0.961 | 0.941 | 0.900 | 0.0046 | 0.980 |
-| GPT 3-shot | 0.947 | 0.935 | 0.945 | 0.880 | 0.0049 | 0.980 |
+|-------|-----------|--------|------|-------------|-----|----------------|
+| GPT zero-shot | 0.937 | **0.961** | 0.941 | **0.900** | 0.0046 | **0.980** |
+| GPT 3-shot | 0.947 | 0.935 | 0.945 | 0.880 | 0.0049 | **0.980** |
 | Qwen zero-shot | 0.028 | 0.104 | 0.032 | 0.000 | 7.7447 | 0.960 |
 | Qwen 3-shot | 0.057 | 0.156 | 0.065 | 0.000 | 10.3341 | 0.960 |
-| **MathCorrector (QLoRA, rank 16)** | **0.961** | 0.948 | **0.958** | **0.900** | **0.0014** | 0.980 |
+| **MathCorrector (QLoRA, rank 16)** | **0.961** | 0.948 | **0.958** | **0.900** | **0.0014** | **0.980** |
 
-### Ablation Results
+Ablations:
 
-LoRA rank:
-
-| Rank | Precision | Recall | F0.5 | Exact Match | CER |
-|------|-----------|--------|------|-------------|-----|
+| LoRA rank | Precision | Recall | F0.5 | Exact Match | CER |
+|-----------|-----------|--------|------|-------------|-----|
 | 8 | 0.961 | 0.948 | 0.958 | 0.900 | 0.0014 |
-| 16 | 0.961 | 0.948 | 0.958 | 0.900 | 0.0014 |
-| 32 | 0.974 | 0.961 | 0.971 | 0.920 | 0.0006 |
+| 16 (default) | 0.961 | 0.948 | 0.958 | 0.900 | 0.0014 |
+| **32** | **0.974** | **0.961** | **0.971** | **0.920** | **0.0006** |
 | 64 | 0.961 | 0.948 | 0.958 | 0.900 | 0.0012 |
 
-Target modules:
-
-| Target Modules | Precision | Recall | F0.5 | Exact Match | CER |
+| Target modules | Precision | Recall | F0.5 | Exact Match | CER |
 |----------------|-----------|--------|------|-------------|-----|
-| Attention only | 0.947 | 0.935 | 0.945 | 0.880 | 0.0008 |
-| MLP only | 0.961 | 0.948 | 0.958 | 0.900 | 0.0014 |
-| All modules | 0.961 | 0.948 | 0.958 | 0.900 | 0.0014 |
+| Attention only | 0.947 | 0.935 | 0.945 | 0.880 | **0.0008** |
+| MLP only | **0.961** | **0.948** | **0.958** | **0.900** | 0.0014 |
+| All (default) | **0.961** | **0.948** | **0.958** | **0.900** | 0.0014 |
+
+Every number above is produced by a command in [Reproducing the results](#reproducing-the-results), and every value matches the corresponding file in [`results/`](results/). The results are reported on a 50-example test split, so small absolute differences correspond to very few samples.
+
+## Quick start
+
+Verify the headline numbers in seconds — **no GPU, no model download, no `pip install` required**, because the released predictions and the evaluator both use only the Python standard library:
+
+```bash
+git clone https://github.com/mikessslx/mathcorrector && cd mathcorrector
+python3 -m src.evaluate --predictions_file predictions/qlora_finetuned.jsonl
+```
+
+<details>
+<summary>Expected output</summary>
+
+```text
+  Samples:            50
+  Exact Match:        0.9000
+  Token Precision:    0.9605
+  Token Recall:       0.9481
+  Token F_0.5:        0.9580
+  GLEU:               0.9991
+  CER:                0.0014
+  Detection Acc:      0.9800
+  Detection Prec:     1.0000
+  Detection Recall:   0.9792
+```
+</details>
+
+## Installation
+
+Tested with Python 3.10+ on Linux/Windows, CUDA 12.1, on an NVIDIA RTX 4060 Laptop GPU (8 GB VRAM). Training uses 4-bit NF4 quantization plus gradient checkpointing to fit in that budget.
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+`bitsandbytes` and `accelerate` are not imported by name in this repository, but `transformers` requires them at runtime for `BitsAndBytesConfig(load_in_4bit=True)` and `device_map="auto"`.
+
+## Data
+
+MathTEC-Bench contains 500 sentence-level `source`/`target` pairs: a correct mathematical statement (`target`) and a corrupted variant (`source`) with 1–3 injected errors. Roughly 10% of the examples are left uncorrupted so the model also learns to pass clean input through unchanged; 59/500 items are identical in `source` and `target`.
+
+| File | Contents |
+|---|---|
+| [`data/mathtec_bench_converted.jsonl`](data/mathtec_bench_converted.jsonl) | Full 500-example benchmark |
+| [`data/train.jsonl`](data/train.jsonl) | 400-example training split |
+| [`data/val.jsonl`](data/val.jsonl) | 50-example validation split |
+| [`data/test.jsonl`](data/test.jsonl) | 50-example test split |
+
+Each record is `{"source": str, "target": str}`. The 80/10/10 split is reproducible byte-for-byte from the full benchmark with a fixed seed:
+
+```bash
+# Requires the installed dependencies
+python3 -m data.dataset \
+  --input data/mathtec_bench_converted.jsonl \
+  --output_dir data/ --train_ratio 0.8 --val_ratio 0.1 --seed 42
+```
+
+**Provenance.** The clean sentences were generated by prompting `gpt-5.4` to produce self-contained mathematical statements with inline LaTeX across ten undergraduate topics; errors were then injected programmatically by a rule-based error injector over five categories (spelling, OCR-symbol, OCR-formula, variable, handwriting-confusion). No third-party textbook, exam-bank or scraped text is redistributed. The benchmark builder, the injection module and the per-error injection labels live in the companion repository [mikessslx/mathtec](https://github.com/mikessslx/mathtec) (`data/construct_benchmark.py`, `data/error_injector.py`, `data/mathtec_bench.json`); this repository ships the converted `source`/`target` splits used for training and evaluation.
+
+**License.** MathTEC-Bench data is released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Code is released under [Apache-2.0](LICENSE); see [License](#license).
+
+## Reproducing the results
+
+| Paper table / figure | Command | Requires |
+|---|---|---|
+| Table 1 (main results) | `bash scripts/run_baselines.sh` | GPU (~8 GB) + GPT API for the GPT rows |
+| Table 1, re-scored from released predictions | `python3 -m src.evaluate --predictions_file predictions/<name>.jsonl` | Nothing but Python |
+| Table 2 (target modules) | `bash scripts/run_ablations.sh` | GPU |
+| Figure 1 (LoRA rank) | `bash scripts/run_ablations.sh` | GPU |
+
+Because the prediction files and their evaluation JSONs are released, every number in both tables can be re-derived without a GPU:
+
+```bash
+# Our model
+python3 -m src.evaluate --predictions_file predictions/qlora_finetuned.jsonl
+
+# Baselines
+for p in gpt_zero_shot gpt_few_shot base_zero_shot base_few_shot; do
+  python3 -m src.evaluate --predictions_file "predictions/$p.jsonl"
+done
+
+# Ablations
+for p in ablation/rank_8 ablation/rank_16 ablation/rank_32 ablation/rank_64 \
+         ablation/modules_attention_only ablation/modules_mlp_only ablation/modules_all; do
+  python3 -m src.evaluate --predictions_file "predictions/$p.jsonl"
+done
+```
+
+Full reproduction from scratch:
+
+```bash
+# 1. Train the default rank-16 QLoRA adapter
+bash scripts/train.sh
+
+# 2. Baselines: local Qwen zero/few-shot + GPT zero/few-shot
+export GPT_MODEL="gpt-5.4"
+export GPT_BASE_URL="https://your-relay.com/v1"
+export GPT_API_KEY="sk-..." # never commit this
+bash scripts/run_baselines.sh
+
+# 3. Ablations: LoRA rank {8, 32, 64} and target modules {attention-only, MLP-only}
+bash scripts/run_ablations.sh
+```
+
+Training uses seed 42 (`configs/default.yaml`), greedy decoding (`do_sample: false`) and `max_new_tokens=512` for every system. The GPT baselines use an OpenAI-compatible chat-completions endpoint; set `GPT_BASE_URL` / `GPT_API_KEY` in the environment rather than editing the scripts.
+
+Known implementation detail: the `prompt.system` value in `configs/default.yaml` is written with a literal leading and trailing double quote inside a YAML block scalar. Those quote characters are part of the string as originally used in the reported experiments, and were intentionally left unchanged so the released configuration reproduces the published setup exactly.
+
+## Pre-trained models
+
+The trained QLoRA adapters are **not currently distributed with this repository**. `outputs/` is git-ignored, and the rank-16 adapter behind the main results is no longer available locally, so no weights release is claimed here.
+
+To use a model, train one yourself with `bash scripts/train.sh`, which writes an adapter to `outputs/qlora_r16/final`:
+
+```bash
+python3 -m src.inference \
+  --config configs/default.yaml \
+  --adapter_path outputs/qlora_r16/final \
+  --input_file data/test.jsonl \
+  --output_file predictions/my_model.jsonl
+```
+
+There is also an interactive CLI (`python3 -m src.chat --adapter_path <path-to-adapter>`) for trying the model on your own sentences. Both commands require a locally trained adapter.
+
+## Repository structure
+
+```text
+configs/     experiment configuration (QLoRA, data, generation)
+data/        benchmark splits + dataset loading and split utilities
+src/         training, inference, evaluation, chat entry points
+src/baselines/   Qwen and GPT baseline implementations
+scripts/     train / baseline / ablation shell and PowerShell drivers
+analysis/    heuristic edit-type analysis
+predictions/ released prediction files (source / target / prediction)
+results/     released evaluation JSON, one per system and ablation
+```
+
+## Metrics
+
+All metrics are implemented in [`src/evaluate.py`](src/evaluate.py) using only the standard library:
+
+- **Exact Match** — fraction of predictions identical to the gold correction.
+- **Token Precision / Recall / F0.5** — `difflib.SequenceMatcher` aligns `source`→`target` (gold edits) and `source`→`prediction` (predicted edits); precision and recall are computed over the edit sets, with `F0.5` weighting precision higher.
+- **CER** — character-level Levenshtein distance divided by target length, averaged over samples.
+- **Detection Accuracy** — whether the model correctly decides if a sentence needs changing at all.
+- **GLEU** — simplified GLEU-style n-gram score. It saturates on this small benchmark and is reported for completeness, not used as a primary decision metric.
+
+The token-level metric relies on exact string matching of aligned spans, so mathematically equivalent surface variants (e.g. `Cram\'er` vs. `Cramér`, or `\frac{1}{2}` vs. `\tfrac{1}{2}`) are counted as mismatches. This may slightly underestimate model quality.
+
+## Citation
+
+```bibtex
+@inproceedings{li2026slmmath,
+  title     = {Specializing Small Language Models for Mathematical Error Correction
+               via Parameter-Efficient Fine-Tuning},
+  author    = {Li, Xiang},
+  booktitle = {Proceedings of the 2026 6th International Conference on Applied
+               Mathematics, Modelling and Intelligent Computing (CAMMIC)},
+  publisher = {ACM},
+  pages     = {485--489},
+  year      = {2026},
+  doi       = {10.1145/3817124.3817199}
+}
+```
+
+A [`CITATION.cff`](CITATION.cff) is included, so GitHub shows a "Cite this repository" button.
+
+## License
+
+- **Code** (everything in this repository except the data files listed below): [Apache-2.0](LICENSE). Copyright 2025-2026 Xiang Li.
+- **Data** (MathTEC-Bench: `data/mathtec_bench_converted.jsonl`, `data/train.jsonl`, `data/val.jsonl`, `data/test.jsonl`): [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- **Prediction and result files** (`predictions/`, `results/`): released under the same Apache-2.0 terms as the code.
+- **Base model**: `Qwen/Qwen2.5-Math-7B-Instruct` is distributed under [Apache-2.0](https://huggingface.co/Qwen/Qwen2.5-Math-7B-Instruct) (Copyright 2024 Alibaba Cloud). Adapters trained with this code are derivatives of that model, not the original, and are not endorsed by Alibaba or the Qwen team.
+- **Paper**: the published article is licensed CC BY 4.0 by ACM. That license covers the paper, not this repository.
+
+## Acknowledgements
+
+The author thanks Prof. Antti Rasila for guidance and support throughout this research.

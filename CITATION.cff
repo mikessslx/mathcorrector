@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this code or the MathTEC-Bench benchmark, please cite the dataset/code repository (this entry) and the paper below."
+title: "MathCorrector: QLoRA specialization of Qwen2.5-Math-7B-Instruct for mathematical text error correction"
+abstract: >-
+  Reference implementation, benchmark splits, prediction files and evaluation scripts for MathCorrector, a QLoRA-fine-tuned Qwen2.5-Math-7B-Instruct model that minimally repairs terminology, notation, formula and logical errors in English mathematical text interleaved with LaTeX.
+authors:
+  - family-names: Li
+    given-names: Xiang
+    affiliation: "Guangdong Technion - Israel Institute of Technology (GTIIT), Shantou, China"
+type: software
+repository-code: "https://github.com/mikessslx/mathcorrector"
+url: "https://github.com/mikessslx/mathcorrector"
+license: Apache-2.0
+version: "1.0.0"
+date-released: "2026-10-20"
+keywords:
+  - mathematical text error correction
+  - grammatical error correction
+  - parameter-efficient fine-tuning
+  - QLoRA
+  - Qwen2.5-Math
+  - benchmark
+preferred-citation:
+  type: conference-paper
+  title: "Specializing Small Language Models for Mathematical Error Correction via Parameter-Efficient Fine-Tuning"
+  authors:
+    - family-names: Li
+      given-names: Xiang
+      affiliation: "Guangdong Technion - Israel Institute of Technology (GTIIT), Shantou, China"
+  collection-title: "Proceedings of the 2026 6th International Conference on Applied Mathematics, Modelling and Intelligent Computing (CAMMIC)"
+  publisher:
+    name: ACM
+  conference:
+    name: "2026 6th International Conference on Applied Mathematics, Modelling and Intelligent Computing (CAMMIC)"
+    location: Shanghai, China
+    start: 2026-03-27
+  year: 2026
+  start: 485
+  end: 489
+  doi: "10.1145/3817124.3817199"
+  url: "https://doi.org/10.1145/3817124.3817199"
